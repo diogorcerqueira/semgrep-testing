@@ -1,0 +1,67 @@
+rules:
+  - id: laravel-route-missing-middleware
+    languages: [php]
+    severity: ERROR
+    message: >-
+      Route registered without an authorization/authentication middleware,
+      either directly on the route or on its enclosing Route::group(). Add
+      ->middleware(...) to the route, or wrap it in a
+      Route::middleware([...])->group(...) / Route::group(['middleware' =>
+      [...]], ...) block.
+    metadata:
+      category: security
+      cwe: "CWE-306: Missing Authentication for Critical Function"
+      owasp:
+        - "A01:2021 - Broken Access Control"
+      references:
+        - https://laravel.com/docs/routing#route-group-middleware
+    pattern-either:
+      # Case 1: no ->middleware() on the route, and no enclosing group
+      # declares a middleware key at all.
+      - patterns:
+          - pattern: Route::$METHOD(...)
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: ^(get|post|put|patch|delete|any|match)$
+          - pattern-not-inside: Route::$METHOD(...)-> ... ->middleware(...)
+          - pattern-not-inside: Route::middleware(...)->group(function () { ... })
+          - pattern-not-inside: |
+              Route::group([..., 'middleware' => $MW, ...], function () { ... })
+
+      # Case 2: ->middleware() is chained directly on the route, but the
+      # argument is empty.
+      - patterns:
+          - pattern: Route::$METHOD(...)-> ... ->middleware($MW)
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: ^(get|post|put|patch|delete|any|match)$
+          - metavariable-regex:
+              metavariable: $MW
+              regex: ^(\[\s*\]|''|"")$
+
+      # Case 3: enclosing Route::middleware([...])->group(...), but the
+      # middleware list passed to it is empty.
+      - patterns:
+          - pattern: Route::$METHOD(...)
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: ^(get|post|put|patch|delete|any|match)$
+          - pattern-not-inside: Route::$METHOD(...)-> ... ->middleware(...)
+          - pattern-inside: Route::middleware($GMW)->group(function () { ... })
+          - metavariable-regex:
+              metavariable: $GMW
+              regex: ^(\[\s*\]|''|"")$
+
+      # Case 4: enclosing Route::group(['middleware' => [...]], ...), but
+      # the middleware value is empty.
+      - patterns:
+          - pattern: Route::$METHOD(...)
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: ^(get|post|put|patch|delete|any|match)$
+          - pattern-not-inside: Route::$METHOD(...)-> ... ->middleware(...)
+          - pattern-inside: |
+              Route::group([..., 'middleware' => $GMW2, ...], function () { ... })
+          - metavariable-regex:
+              metavariable: $GMW2
+              regex: ^(\[\s*\]|''|"")$

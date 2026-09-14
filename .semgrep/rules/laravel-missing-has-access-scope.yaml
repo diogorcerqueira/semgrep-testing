@@ -1,0 +1,28 @@
+rules:
+  - id: laravel-missing-has-access-scope
+    languages: [php]
+    severity: ERROR
+    message: >-
+      Eloquent query executed without the ->hasAccess() authorization scope
+      in the chain. Add ->hasAccess() (with or without arguments) before the
+      terminal query method to enforce access control.
+    metadata:
+      category: security
+      cwe: "CWE-639: Authorization Bypass Through User-Controlled Key"
+      owasp:
+        - "A01:2021 - Broken Access Control"
+      references:
+        - https://laravel.com/docs/eloquent#local-scopes
+    patterns:
+      - pattern-either:
+          - pattern: $MODEL::$FIRST(...)-> ... ->$TERMINAL(...)
+          - pattern: $MODEL::$TERMINAL(...)
+      - metavariable-regex:
+          metavariable: $MODEL
+          regex: ^[A-Z][A-Za-z0-9]*$
+      - metavariable-regex:
+          metavariable: $TERMINAL
+          regex: ^(get|first|firstOrFail|find|findOrFail|findOrNew|findOrCreate|firstOrCreate|firstOrNew|updateOrCreate|all|paginate|simplePaginate|cursorPaginate|pluck|sole|count|exists|doesntExist|sum|avg|average|max|min|update|delete|forceDelete|chunk|chunkById|cursor|value|toArray|toSql)$
+      - pattern-not: $MODEL::hasAccess(...)-> ... ->$TERMINAL(...)
+      - pattern-not: $MODEL::$FIRST(...)-> ... ->hasAccess(...)-> ... ->$TERMINAL(...)
+      - pattern-not: $MODEL::hasAccess(...)

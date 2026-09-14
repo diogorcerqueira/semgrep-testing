@@ -1,0 +1,66 @@
+name: Semgrep
+
+on:
+  pull_request:
+    paths:
+      - '**.php'
+      - '.semgrep/**'
+      - 'composer.json'
+      - 'composer.lock'
+      - '.github/workflows/semgrep.yml'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  semgrep:
+    name: semgrep
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep:1.175.0
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: |
+          semgrep scan \
+            --config .semgrep/rules/ \
+            --config p/php \
+            --config p/security-audit \
+            --sarif-output=semgrep.sarif \
+            --json-output=semgrep.json \
+            --metrics=off
+
+      - name: Upload SARIF to GitHub code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+
+      - name: Fail on ERROR-severity findings
+        run: |
+          python3 - <<'PYEOF'
+          import json
+          import sys
+
+          with open("semgrep.json") as f:
+              data = json.load(f)
+
+          errors = [
+              r for r in data.get("results", [])
+              if r.get("extra", {}).get("severity") == "ERROR"
+          ]
+
+          if errors:
+              print(f"::error::{len(errors)} ERROR-severity Semgrep finding(s)")
+              for e in errors:
+                  path = e.get("path")
+                  line = e.get("start", {}).get("line")
+                  rule = e.get("check_id")
+                  message = e.get("extra", {}).get("message", "").splitlines()[0]
+                  print(f"::error file={path},line={line}::{rule}: {message}")
+              sys.exit(1)
+
+          print("No ERROR-severity findings.")
+          PYEOF
