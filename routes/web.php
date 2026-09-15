@@ -41,3 +41,14 @@ Route::get('/failures-safe/search', function () {
 
     return Failure::where('status', $status)->hasAccess(auth()->user())->get();
 });
+
+// VULNERABLE: matches custom rule `laravel-route-missing-middleware`
+// No ->middleware() on the route, no enclosing group.
+Route::get('/admin/reports', function () {
+    return Failure::query()->hasAccess()->get();
+});
+
+// SAFE: middleware present — negative test case for the same rule
+Route::get('/admin/reports-safe', function () {
+    return Failure::query()->hasAccess()->get();
+})->middleware('auth');
