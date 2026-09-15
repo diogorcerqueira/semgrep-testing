@@ -9,34 +9,34 @@ Route::get('/', function () {
 
 // VULNERABLE: matches custom rule `laravel-missing-has-access-scope`
 // No ->hasAccess() scope in the chain — returns rows across tenants/users.
-Route::get('/failures', function () {
+Route::get('/users', function () {
     return User::query()->get();
 });
 
 // VULNERABLE: same rule, static shortcut form
-Route::get('/failures/all', function () {
+Route::get('/users/all', function () {
     return User::all();
 });
 
 // VULNERABLE: same rule, filtered query still missing hasAccess()
-Route::get('/failures/search', function () {
+Route::get('/users/search', function () {
     $status = request('status');
 
     return User::where('status', $status)->get();
 });
 
 // VULNERABLE: same rule, single record lookup
-Route::get('/failures/{id}', function ($id) {
+Route::get('/users/{id}', function ($id) {
     return User::find($id);
 });
 
 // SAFE: hasAccess() present in the chain — negative test case
-Route::get('/failures-safe', function () {
+Route::get('/users-safe', function () {
     return User::query()->hasAccess()->get();
 });
 
 // SAFE: hasAccess() with an argument, filtered
-Route::get('/failures-safe/search', function () {
+Route::get('/users-safe/search', function () {
     $status = request('status');
 
     return User::where('status', $status)->hasAccess(auth()->user())->get();
